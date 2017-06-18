@@ -1,0 +1,19 @@
+{
+    "name": "gency/laravel-filterable",
+    "description": "A trait to add query filtering functions to Laravel models",
+    "require": {
+        "illuminate/support": "~5.1",
+        "php" : ">=5.4.0"
+    },
+    "authors": [
+        {
+            "name": "Gency Digital",
+            "email": "hello@gency.com.au"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Gency\\Filterable\\": "src"
+        }
+    }
+}
