@@ -7,6 +7,23 @@ use \Illuminate\Database\Eloquent\Relations;
 
 trait FilterableTrait
 {
+    
+    public function getFilterable () {
+        return isset($this->filterable) ? $this->filterable : [];
+    }
+    
+    public function getFilterableFtTable ($field) {
+        return isset($this->filterableFtTable) ? $this->filterableFtTable : ($this->getTable() . '_filterable');
+    }
+    
+    public function getFilterableFtKeyName ($field) {
+        return isset($this->filterableFtKeyName) ? $this->filterableFtKeyName : $this->getKeyName();
+    }
+    
+    public function getFilterableFtVector ($field) {
+        return isset($this->filterableFtVector) ? $this->filterableFtVector : "${field}_vector";
+    }
+    
     public function scopeFilter ($query, $args = null, $root = null)
     {
         if (isset($args['AND'])) {
@@ -33,8 +50,7 @@ trait FilterableTrait
             }
             return $query->filterableNor($args['NOR'], $root);
         }
-        $filterable = method_exists($this, 'filterable') ? $this->filterable() : $this->filterable;
-        foreach ($filterable as $field => $rules) {
+        foreach ($this->getFilterable() as $field => $rules) {
             if ($rules instanceof Relations\Relation) {
                 if (array_key_exists($field, $args)) {
                     $query->filterableRelation($rules, $field, $args[$field], $root);
@@ -213,9 +229,9 @@ trait FilterableTrait
             throw new FilterableException('FT rule does not accept null"');
         }
         $root = $root ?: $query;
-        $table = $query->getModel()->getTable() . '_filterable';
-        $key = $query->getModel()->getKeyName();
-        $vector = "${field}_vector";
+        $table = $query->getModel()->getFilterableFtTable($field);
+        $key = $query->getModel()->getFilterableFtKeyName($field);
+        $vector = $query->getModel()->getFilterableFtVector($field);
         $rank = "${field}_rank";
         $_rank = DB::raw('ts_rank('.$this->filterable__wrap($vector).', query) as ' . $this->filterable__wrap($rank));
         

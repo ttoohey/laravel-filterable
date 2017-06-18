@@ -23,7 +23,7 @@ class User extends Model
 {
   use \Gency\Filterable\FilterableTrait;
   
-  public $filterable = [
+  protected $filterable = [
     'name' => Filterable::String,
     'email' => Filterable::String
   ];
@@ -47,7 +47,7 @@ The `$filterable` property defines the fields that may be used in filter queries
 
 The built-in rules are:
 
-* EQ - equalality
+* EQ - equality
 * LIKE - SQL like
 * ILIKE - a case-insensitive version of LIKE
 * MATCH - wildcard pattern matching
@@ -88,6 +88,22 @@ User::filter($filter);
 
 The SQL that is run will match any user whose name is a case-insensitive match containing 'John', such as 'Little john', 'Johnathon', 'JOHN'.
 
+The model's filterable definition can also be return dynamically by overloading the getFilterable() method on the class.
+
+```
+class User extends Model
+{
+  use \Gency\Filterable\FilterableTrait;
+  
+  public function getFilterable () {
+    return [
+      'name' => Filterable::String,
+      'email' => Filterable::String
+    ];
+  }
+}
+```
+
 # Custom rules
 
 A class may provide custom rules to apply to fields.
@@ -96,7 +112,7 @@ A class may provide custom rules to apply to fields.
 class User extends Model
 {
   use \Gency\Filterable\FilterableTrait;
-  public $filterable = [
+  protected $filterable = [
     'keyword' => 'Keyword'
   ];
   public function scopeFilterKeyword($query, $field, $arg) {
@@ -175,7 +191,7 @@ class Post extends Model
 {
   use \Gency\Filterable\FilterableTrait;
   
-  public function filterable () {
+  public function getFilterable () {
     return [
       'comment' => $this->comments()
     ];
@@ -190,7 +206,7 @@ class Comment extends Model
 {
   use \Gency\Filterable\FilterableTrait;
   
-  public function filterable () {
+  public function getFilterable () {
     return [
       'created_at' => Filterable::Date
     ];
@@ -220,7 +236,7 @@ Post::filter($filter)->toSql()
 
 The `Filterable::FT` rule provides a basic form of full text search in PostgreSQL using tsearch.
 
-To make use of the full text rule the application must provide a table populated with search data. The table is named according to the model name with `_filterable` as suffix, and has a one-to-one mapping using the same primary key as the model's table. The tsearch vector data is stored in a column using the field's name with `_vector` suffix.
+To make use of the full text rule the application must provide a table populated with search data. By default, the table is named according to the model name with `_filterable` as suffix, and has a one-to-one mapping using the same primary key as the model's table. The tsearch vector data is stored in a column using the field's name with `_vector` suffix. The table and vector field names can be customised by provide values for the filterableFtTable and filterableFtVector properties.
 
 ```
 -- Content model table
@@ -235,7 +251,7 @@ The application must ensure the vector field is appropriately updated (usually b
 class Post
 {
   use \Gency\Filterable\FilterableTrait;
-  public $filterable = [
+  protected $filterable = [
     'body' => Filterable::FT
   ];
 }
@@ -250,4 +266,40 @@ Post::filter($filter)->orderBy('body_rank', 'desc')->toSql();
 //  where "body_vector" @@ "query"
 // ) as body_1 on "posts"."id" = "body_1"."id"
 // order by "body_rank" desc
+```
+
+The model may provide custom values for the search table, foreign key, and field names.
+
+```
+class Post
+{
+  use \Gency\Filterable\FilterableTrait;
+  protected $filterable = [
+    'body' => Filterable::FT
+  ];
+  protected $filterableFtTable = 'search';
+  protected $filterableFtKeyName = 'post_id';
+  protected $filterableFtVector = 'data';
+}
+```
+
+These custom values may also be evaluated dynamically by providing "get" functions.
+
+```
+class Post
+{
+  use \Gency\Filterable\FilterableTrait;
+  protected $filterable = [
+    'body' => Filterable::FT
+  ];
+  public function getFilterableFtTable ($field) {
+    return 'search';
+  };
+  public function getFilterableFtKeyName ($field) {
+    return 'post_id';
+  }
+  public function getFilterableFtVector ($field) {
+    return $field;
+  }
+}
 ```
