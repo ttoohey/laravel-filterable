@@ -17,7 +17,7 @@ composer require gency/laravel-filterable
 Basic usage is to add the trait to a Model class and configure filterable fields.
 
 ```
-use Gency\Filterable;
+use Gency\Filterable\Filterable;
 
 class User extends Model
 {
