@@ -9,7 +9,7 @@ The Gency\Filterable\FilterableTrait adds a filter() method to a Model which wor
 # Install
 
 ```
-composer require ttoohey/laravel-filterable
+composer require gency/laravel-filterable
 ```
 
 # Usage
