@@ -50,13 +50,13 @@ trait FilterableTrait
                 }
                 if (array_key_exists($k, $args)) {
                     $method = 'filter' . ucfirst(strtolower($rule));
-                    $query->$method($field, $args[$k]);
+                    $query->$method($field, $args[$k], $root);
                     unset($args[$k]);
                 }
                 $k = "!$k";
                 if (array_key_exists($k, $args)) {
                     $method = 'filterNot' . ucfirst(strtolower($rule));
-                    $query->$method($field, $args[$k]);
+                    $query->$method($field, $args[$k], $root);
                     unset($args[$k]);
                 }
             }
@@ -203,10 +203,6 @@ trait FilterableTrait
 
     public function scopeFilterFt($query, $field, $arg, $root = null)
     {
-        /** TODO: general idea is to join a "table_filterable" table containing a 
-            pre-populated tsvector column named "${field}_vector" and use the
-            postgres tsearch '@@' operator to search. The $arg expression needs to
-            be parsed into a tsquery format **/
         $root = $root ?: $query;
         $table = $query->getModel()->getTable() . '_filterable';
         $key = $query->getModel()->getKeyName();
@@ -223,9 +219,12 @@ trait FilterableTrait
         $t2 = $this->filterable__newAlias($field);
         $f1 = $query->getModel()->getQualifiedKeyName();
         $f2 = "${t2}.{$key}";
-        $root->leftJoin(DB::raw("({$sub->toSql()}) as $t2"), $f1, '=', $f2);
+        $joinMethod = ($root === $query ? 'join' : 'leftJoin');
+        $root->$joinMethod(DB::raw("({$sub->toSql()}) as $t2"), $f1, '=', $f2);
         $query->mergeBindings($sub);
-        $query->whereNotNull($f2);
+        if ($joinMethod === 'leftJoin') {
+            $query->whereNotNull($f2);
+        }
         return $query;
     }
     
@@ -281,35 +280,34 @@ trait FilterableTrait
         $class = $relation->getRelated();
         $sub = $class::filter($args);
         $t2 = $this->filterable__newAlias(str_plural($field));
+        $joinMethod = ($root === $query ? 'join' : 'leftJoin');
         if ($relation instanceof Relations\BelongsToMany) {
             $sub->join($relation->getTable(), $class->getQualifiedKeyName(), '=', $relation->getOtherKey());
             $a2 = str_singular($t1) . '_id';
             $sub->distinct()->select($relation->getForeignKey() . " as $a2");
             $f2 = $t2 . '.' . $a2;
-            $root->leftJoin(DB::raw("({$sub->toSql()}) as $t2"), $f1, '=', $f2);
+            $root->$joinMethod(DB::raw("({$sub->toSql()}) as $t2"), $f1, '=', $f2);
         } else if ($relation instanceof Relations\HasOneOrMany) {
             $sub->distinct()->select($relation->getForeignKey());
             $f2 = $t2 . '.' . $relation->getPlainForeignKey();
-            $root->leftJoin(DB::raw("({$sub->toSql()}) as $t2"), $f1, '=', $f2);
+            $root->$joinMethod(DB::raw("({$sub->toSql()}) as $t2"), $f1, '=', $f2);
         } else {
             $sub->distinct()->select($relation->getQualifiedOtherKeyName() . ' as id');
             $key = $relation->getForeignKey();
             $f1 = $relation->getQualifiedForeignKey();
             $f2 = "$t2.id";
-            $root->leftJoin(DB::raw("({$sub->toSql()}) as $t2"), $f1, '=', $f2);
+            $root->$joinMethod(DB::raw("({$sub->toSql()}) as $t2"), $f1, '=', $f2);
         }
         $root->mergeBindings($sub->toBase());
-        $query->whereNotNull($f2);
+        if ($joinMethod === 'leftJoin') {
+            $query->whereNotNull($f2);
+        }
         return $query;
     }
     
     private $filterable__aliasCount = 0;
     private function filterable__newAlias($prefix = 't') {
         return $prefix . '_' . (++$this->filterable__aliasCount);
-    }
-    
-    private function filterable__lower($field) {
-        return DB::raw('lower(' . $this->filterable__wrap($field) .')');
     }
     
     private function filterable__wrap($field) {

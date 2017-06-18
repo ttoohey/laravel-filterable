@@ -209,12 +209,11 @@ $filter = [
   ]
 ];
 Post::filter($filter)->toSql()
-// select * from posts left join (
+// select * from posts inner join (
 //  select distinct comments.post_id
 //  from comments
 //  where created_at >= ? and created_at <= ?
 // ) as comments_1 on posts.id = comments_1.post_id
-// where comments_1.post_id is not null
 ```
 
 # Full text search
@@ -244,12 +243,11 @@ $filter = [
   'body' => 'fat cats'
 ];
 Post::filter($filter)->orderBy('body_rank', 'desc')->toSql();
-// select * from "posts" left join (
+// select * from "posts" inner join (
 //  select "id", ts_rank("body_vector", query) as "body_rank"
 //  from "posts_filterable"
 //  cross join plainto_tsquery(?) query
 //  where "body_vector" @@ "query"
 // ) as body_1 on "posts"."id" = "body_1"."id"
-// where "body_1"."id" is not null
 // order by "body_rank" desc
 ```
