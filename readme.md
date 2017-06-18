@@ -21,6 +21,8 @@ use Gency\Filterable\Filterable;
 
 class User extends Model
 {
+  use \Gency\Filterable\FilterableTrait;
+  
   public $filterable = [
     'name' => Filterable::String,
     'email' => Filterable::String
@@ -54,7 +56,7 @@ The built-in rules are:
 * GT - greater than
 * LT - less than
 * RE - regular expression
-* FT - full text search (not yet implemented)
+* FT - full text search (see notes below)
 * IN - contained in list
 
 A standard set of rules are provided
@@ -93,6 +95,7 @@ A class may provide custom rules to apply to fields.
 ```
 class User extends Model
 {
+  use \Gency\Filterable\FilterableTrait;
   public $filterable = [
     'keyword' => 'Keyword'
   ];
@@ -110,6 +113,36 @@ class User extends Model
 Custom rules can be listed in the $filterable definition along with the built-in rules and work in the same way. The first rule in $filterable is the default rule for the field. If it's not the first rule it must have the rule name added as a suffix to the field name in the query.
 
 Rule names are converted to 'ucfirst' and appended to 'scopeFilter'.
+
+# Negating rules
+
+Some rules may be negated by prefixing with a '!'.
+
+```
+// anyone but John
+$filter = [
+  '!name' => 'John'
+];
+User::filter($filter)->toSql();
+// select * from users where name != ?
+```
+
+Note: the comparison rules (MIN, MAX, LT, GT) do not have negated forms.
+
+Custom rules may implemented a negated version by defining a corresponding scope function that implements the functionality. The function is named similarly, but with the word 'Not' before the rule name.
+
+```
+class User extends Model
+{
+   ...
+   public function scopeFilterNotKeyword($query, $field, $arg) {
+     return $query
+       ->where('name', '!=', $arg)
+       ->where('email', '!=', $arg)
+       ->where('phone', '!=', $arg);
+   }
+}
+```
 
 # Logical combinations with AND, OR, and NOT
 
@@ -140,7 +173,7 @@ Relationships can be used to filter related models.
 
 class Post extends Model
 {
-  use Gency\Filterable\FilterableTrait;
+  use \Gency\Filterable\FilterableTrait;
   
   public function filterable () {
     return [
@@ -155,7 +188,7 @@ class Post extends Model
 
 class Comment extends Model
 {
-  use Gency\Filterable\FilterableTrait;
+  use \Gency\Filterable\FilterableTrait;
   
   public function filterable () {
     return [
@@ -176,5 +209,47 @@ $filter = [
   ]
 ];
 Post::filter($filter)->toSql()
-// select * from posts left join (select distinct comments.post_id from comments where created_at >= ? and created_at <= ?) as comments_1 on posts.id = comments_1.post_id where comments_1.post_id is not null;
+// select * from posts left join (
+//  select distinct comments.post_id
+//  from comments
+//  where created_at >= ? and created_at <= ?
+// ) as comments_1 on posts.id = comments_1.post_id
+// where comments_1.post_id is not null
+```
+
+# Full text search
+
+The `Filterable::FT` rule provides a basic form of full text search in PostgreSQL using tsearch.
+
+To make use of the full text rule the application must provide a table populated with search data. The table is named according to the model name with `_filterable` as suffix, and has a one-to-one mapping using the same primary key as the model's table. The tsearch vector data is stored in a column using the field's name with `_vector` suffix.
+
+```
+-- Content model table
+create table posts (id int primary key, body text);
+-- Full text search data
+create table posts_filterable (id int references posts (id), body_vector tsvector);
+```
+
+The application must ensure the vector field is appropriately updated (usually by defining trigger functions).
+
+```
+class Post
+{
+  use \Gency\Filterable\FilterableTrait;
+  public $filterable = [
+    'body' => Filterable::FT
+  ];
+}
+$filter = [
+  'body' => 'fat cats'
+];
+Post::filter($filter)->orderBy('body_rank', 'desc')->toSql();
+// select * from "posts" left join (
+//  select "id", ts_rank("body_vector", query) as "body_rank"
+//  from "posts_filterable"
+//  cross join plainto_tsquery(?) query
+//  where "body_vector" @@ "query"
+// ) as body_1 on "posts"."id" = "body_1"."id"
+// where "body_1"."id" is not null
+// order by "body_rank" desc
 ```

@@ -36,7 +36,7 @@ trait FilterableTrait
         $filterable = method_exists($this, 'filterable') ? $this->filterable() : $this->filterable;
         foreach ($filterable as $field => $rules) {
             if ($rules instanceof Relations\Relation) {
-                if (isset($args[$field])) {
+                if (array_key_exists($field, $args)) {
                     $query->filterableRelation($rules, $field, $args[$field], $root);
                     unset($args[$field]);
                 }
@@ -48,13 +48,13 @@ trait FilterableTrait
                 } else {
                     $k = "${field}_${rule}";
                 }
-                if (isset($args[$k])) {
+                if (array_key_exists($k, $args)) {
                     $method = 'filter' . ucfirst(strtolower($rule));
                     $query->$method($field, $args[$k]);
                     unset($args[$k]);
                 }
                 $k = "!$k";
-                if (isset($args[$k])){
+                if (array_key_exists($k, $args)) {
                     $method = 'filterNot' . ucfirst(strtolower($rule));
                     $query->$method($field, $args[$k]);
                     unset($args[$k]);
@@ -91,13 +91,28 @@ trait FilterableTrait
         return $query->where($field, 'like', $arg);
     }
     
+    public function scopeFilterNotLike($query, $field, $arg)
+    {
+        if ($arg === null) {
+            return $query;
+        }
+        return $query->where($field, 'not like', $arg);
+    }
+    
     public function scopeFilterIlike($query, $field, $arg)
     {
         if ($arg === null) {
             return $query;
         }
-        $arg = mb_strtolower($arg);
-        return $query->where($this->lower($field), 'like', $arg);
+        return $query->where($field, 'ilike', $arg);
+    }
+    
+    public function scopeFilterNotIlike($query, $field, $arg)
+    {
+        if ($arg === null) {
+            return $query;
+        }
+        return $query->where($field, 'not ilike', $arg);
     }
     
     public function scopeFilterMatch($query, $field, $arg)
@@ -106,12 +121,26 @@ trait FilterableTrait
             return $query;
         }
         $arg = preg_replace('/%/', '\%', $arg);
-        if (mb_strstr($term, '*')) {
+        if (mb_strstr($arg, '*')) {
             $arg = preg_replace('/\*+/', '%', $arg);
         } else {
             $arg = '%' . $arg . '%';
         }
         return $query->filterIlike($field, $arg);
+    }
+    
+    public function scopeFilterNotMatch($query, $field, $arg)
+    {
+        if ($arg === null) {
+            return $query;
+        }
+        $arg = preg_replace('/%/', '\%', $arg);
+        if (mb_strstr($arg, '*')) {
+            $arg = preg_replace('/\*+/', '%', $arg);
+        } else {
+            $arg = '%' . $arg . '%';
+        }
+        return $query->filterNotIlike($field, $arg);
     }
     
     public function scopeFilterMin($query, $field, $arg)
@@ -154,6 +183,14 @@ trait FilterableTrait
         return $query->where($field, '~', $arg);
     }
     
+    public function scopeFilterNotRe($query, $field, $arg)
+    {
+        if ($arg === null) {
+            return $query;
+        }
+        return $query->where($field, '!~', $arg);
+    }
+    
     public function scopeFilterIn($query, $field, $arg)
     {
         return $query->whereIn($field, $arg);
@@ -164,16 +201,32 @@ trait FilterableTrait
         return $query->whereNotIn($field, $arg);
     }
 
-    public function scopeFilterFt($query, $field, $arg)
+    public function scopeFilterFt($query, $field, $arg, $root = null)
     {
         /** TODO: general idea is to join a "table_filterable" table containing a 
             pre-populated tsvector column named "${field}_vector" and use the
             postgres tsearch '@@' operator to search. The $arg expression needs to
             be parsed into a tsquery format **/
-        $table = isset($this->filterableTable[self::FT][$field]) ?: ($this->table . '_filterable');
+        $root = $root ?: $query;
+        $table = $query->getModel()->getTable() . '_filterable';
+        $key = $query->getModel()->getKeyName();
         $vector = "${field}_vector";
-        $query->join($table, "${table}.{$this->id}", '=', "{$this->table}.{$this->id}");
-        return $query->where("${table}.${vector}", '@@', $this->toFullTextVector($arg));
+        $rank = "${field}_rank";
+        $_rank = DB::raw('ts_rank('.$this->filterable__wrap($vector).', query) as ' . $this->filterable__wrap($rank));
+        
+        $sub = DB::table($table)->select($key, $_rank);
+        $sub->crossJoin(DB::raw('plainto_tsquery(?) query'))->addBinding($arg);
+
+        $where = $this->filterable__wrap($vector) . ' @@ ' . $this->filterable__wrap('query');
+        $sub->whereRaw($where);
+        
+        $t2 = $this->filterable__newAlias($field);
+        $f1 = $query->getModel()->getQualifiedKeyName();
+        $f2 = "${t2}.{$key}";
+        $root->leftJoin(DB::raw("({$sub->toSql()}) as $t2"), $f1, '=', $f2);
+        $query->mergeBindings($sub);
+        $query->whereNotNull($f2);
+        return $query;
     }
     
     public function scopeFilterableAnd($query, $filters, $root = null)
@@ -227,7 +280,7 @@ trait FilterableTrait
         $f1 = $query->getModel()->getQualifiedKeyName();
         $class = $relation->getRelated();
         $sub = $class::filter($args);
-        $t2 = $this->filterableNewAlias(str_plural($field));
+        $t2 = $this->filterable__newAlias(str_plural($field));
         if ($relation instanceof Relations\BelongsToMany) {
             $sub->join($relation->getTable(), $class->getQualifiedKeyName(), '=', $relation->getOtherKey());
             $a2 = str_singular($t1) . '_id';
@@ -250,12 +303,16 @@ trait FilterableTrait
         return $query;
     }
     
-    private $filterableAliasCount = 0;
-    private function filterableNewAlias($prefix = 't') {
-        return $prefix . '_' . (++$this->filterableAliasCount);
+    private $filterable__aliasCount = 0;
+    private function filterable__newAlias($prefix = 't') {
+        return $prefix . '_' . (++$this->filterable__aliasCount);
     }
     
-    private function lower($field) {
-        return DB::raw('lower(' . DB::getQueryGrammar()->wrap($field) .')');
+    private function filterable__lower($field) {
+        return DB::raw('lower(' . $this->filterable__wrap($field) .')');
+    }
+    
+    private function filterable__wrap($field) {
+        return DB::getQueryGrammar()->wrap($field);
     }
 }
