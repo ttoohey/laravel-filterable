@@ -11,25 +11,25 @@ trait FilterableTrait
     {
         if (isset($args['AND'])) {
             if (count($args) !== 1) {
-                throw new \ErrorException('AND parameter must not have peers');
+                throw new FilterableException('AND parameter must not have peers');
             }
             return $query->filterableAnd($args['AND'], $root);
         }
         if (isset($args['OR'])) {
             if (count($args) !== 1) {
-                throw new \ErrorException('OR parameter must not have peers');
+                throw new FilterableException('OR parameter must not have peers');
             }
             return $query->filterableOr($args['OR'], $root);
         }
         if (isset($args['NOT'])) {
             if (count($args) !== 1) {
-                throw new \ErrorException('NOT parameter must not have peers');
+                throw new FilterableException('NOT parameter must not have peers');
             }
             return $query->filterableNot($args['NOT'], $root);
         }
         if (isset($args['NOR'])) {
             if (count($args) !== 1) {
-                throw new \ErrorException('NOR parameter must not have peers');
+                throw new FilterableException('NOR parameter must not have peers');
             }
             return $query->filterableNor($args['NOR'], $root);
         }
@@ -62,7 +62,7 @@ trait FilterableTrait
             }
         }
         if (count($args) > 0) {
-            throw new \ErrorException('Filter query has unknown field: ' . array_keys($args)[0]);
+            throw new FilterableException('Filter query has unknown field: ' . array_keys($args)[0]);
         }
         return $query;
     }
@@ -86,7 +86,7 @@ trait FilterableTrait
     public function scopeFilterLike($query, $field, $arg)
     {
         if ($arg === null) {
-            return $query;
+            throw new FilterableException('LIKE rule does not accept null"');
         }
         return $query->where($field, 'like', $arg);
     }
@@ -94,7 +94,7 @@ trait FilterableTrait
     public function scopeFilterNotLike($query, $field, $arg)
     {
         if ($arg === null) {
-            return $query;
+            throw new FilterableException('LIKE rule does not accept null"');
         }
         return $query->where($field, 'not like', $arg);
     }
@@ -102,7 +102,7 @@ trait FilterableTrait
     public function scopeFilterIlike($query, $field, $arg)
     {
         if ($arg === null) {
-            return $query;
+            throw new FilterableException('ILIKE rule does not accept null"');
         }
         return $query->where($field, 'ilike', $arg);
     }
@@ -110,7 +110,7 @@ trait FilterableTrait
     public function scopeFilterNotIlike($query, $field, $arg)
     {
         if ($arg === null) {
-            return $query;
+            throw new FilterableException('ILIKE rule does not accept null"');
         }
         return $query->where($field, 'not ilike', $arg);
     }
@@ -118,7 +118,7 @@ trait FilterableTrait
     public function scopeFilterMatch($query, $field, $arg)
     {
         if ($arg === null) {
-            return $query;
+            throw new FilterableException('MATCH rule does not accept null"');
         }
         $arg = preg_replace('/%/', '\%', $arg);
         if (mb_strstr($arg, '*')) {
@@ -132,7 +132,7 @@ trait FilterableTrait
     public function scopeFilterNotMatch($query, $field, $arg)
     {
         if ($arg === null) {
-            return $query;
+            throw new FilterableException('MATCH rule does not accept null"');
         }
         $arg = preg_replace('/%/', '\%', $arg);
         if (mb_strstr($arg, '*')) {
@@ -146,7 +146,7 @@ trait FilterableTrait
     public function scopeFilterMin($query, $field, $arg)
     {
         if ($arg === null) {
-            return $query;
+            throw new FilterableException('MIN rule does not accept null"');
         }
         return $query->where($field, '>=', $arg);
     }
@@ -154,7 +154,7 @@ trait FilterableTrait
     public function scopeFilterMax($query, $field, $arg)
     {
         if ($arg === null) {
-            return $query;
+            throw new FilterableException('MAX rule does not accept null"');
         }
         return $query->where($field, '<=', $arg);
     }
@@ -162,7 +162,7 @@ trait FilterableTrait
     public function scopeFilterLt($query, $field, $arg)
     {
         if ($arg === null) {
-            return $query;
+            throw new FilterableException('LT rule does not accept null"');
         }
         return $query->where($field, '<', $arg);
     }
@@ -170,7 +170,7 @@ trait FilterableTrait
     public function scopeFilterGt($query, $field, $arg)
     {
         if ($arg === null) {
-            return $query;
+            throw new FilterableException('GT rule does not accept null"');
         }
         return $query->where($field, '>', $arg);
     }
@@ -178,7 +178,7 @@ trait FilterableTrait
     public function scopeFilterRe($query, $field, $arg)
     {
         if ($arg === null) {
-            return $query;
+            throw new FilterableException('RE rule does not accept null"');
         }
         return $query->where($field, '~', $arg);
     }
@@ -186,23 +186,32 @@ trait FilterableTrait
     public function scopeFilterNotRe($query, $field, $arg)
     {
         if ($arg === null) {
-            return $query;
+            throw new FilterableException('RE rule does not accept null"');
         }
         return $query->where($field, '!~', $arg);
     }
     
     public function scopeFilterIn($query, $field, $arg)
     {
+        if ($arg === null) {
+            throw new FilterableException('IN rule does not accept null"');
+        }
         return $query->whereIn($field, $arg);
     }
 
     public function scopeFilterNotIn($query, $field, $arg)
     {
+        if ($arg === null) {
+            throw new FilterableException('IN rule does not accept null"');
+        }
         return $query->whereNotIn($field, $arg);
     }
 
     public function scopeFilterFt($query, $field, $arg, $root = null)
     {
+        if ($arg === null) {
+            throw new FilterableException('FT rule does not accept null"');
+        }
         $root = $root ?: $query;
         $table = $query->getModel()->getTable() . '_filterable';
         $key = $query->getModel()->getKeyName();
