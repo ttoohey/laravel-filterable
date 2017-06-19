@@ -2,8 +2,6 @@
 
 namespace Gency\Filterable;
 
-use \Illuminate\Support\Facades\DB;
-
 class Filterable
 {
     const EQ = 'EQ'; // equal to
@@ -18,35 +16,11 @@ class Filterable
     const FT = 'FT'; // full text search
     const IN = 'IN'; // list contains
     
-    const String = [
-        self::EQ,
-        self::LIKE,
-        self::ILIKE,
-        self::MATCH,
-    ];
-    
-    const Numeric = [
-        self::EQ,
-        self::MIN,
-        self::MAX,
-        self::LT,
-        self::GT
-    ];
-    
-    const Enum = [
-        self::EQ,
-        self::IN
-    ];
-    
-    const Date = [
-        self::EQ,
-        self::MIN,
-        self::MAX,
-        self::LT,
-        self::GT
-    ];
-    
-    const Boolean = [
-        self::EQ
-    ];
+    const String = Type\StringType::class;
+    const Text = Type\TextType::class;
+    const Integer = Type\IntegerType::class;
+    const Numeric = Type\NumericType::class;
+    const Enum = Type\EnumType::class;
+    const Date = Type\DateType::class;
+    const Boolean = Type\BooleanType::class;
 }
