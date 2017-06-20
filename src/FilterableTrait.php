@@ -326,7 +326,9 @@ trait FilterableTrait
             $f2 = "$t2.id";
             $root->$joinMethod(DB::raw("({$sub->toSql()}) as $t2"), $f1, '=', $f2);
         }
-        $root->mergeBindings($sub->toBase());
+        foreach ($sub->toBase()->getBindings() as $binding) {
+            $root->addBinding($binding, 'join');
+        }
         if ($joinMethod === 'leftJoin') {
             $query->whereNotNull($f2);
         }
