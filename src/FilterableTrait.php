@@ -59,7 +59,7 @@ trait FilterableTrait
                 continue;
             }
             $rules = collect($rules)->map(function ($rule) {
-                return $this->filtereable__isFilterableType($rule) ? $rule::default() : $rule;
+                return Filterable::isFilterableType($rule) ? $rule::default() : $rule;
             })->flatten()->unique();
             foreach ($rules as $n => $rule) {
                 if ($n === 0) {
@@ -340,9 +340,5 @@ trait FilterableTrait
     
     private function filterable__wrap($field) {
         return DB::getQueryGrammar()->wrap($field);
-    }
-    
-    private function filtereable__isFilterableType($class) {
-        return is_string($class) && class_exists($class) && in_array(FilterableType::class, class_implements($class));
     }
 }

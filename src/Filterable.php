@@ -23,4 +23,8 @@ class Filterable
     const Enum = Type\EnumType::class;
     const Date = Type\DateType::class;
     const Boolean = Type\BooleanType::class;
+
+    static function isFilterableType($class) {
+        return is_string($class) && class_exists($class) && in_array(FilterableType::class, class_implements($class));
+    }
 }
