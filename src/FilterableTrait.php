@@ -67,7 +67,7 @@ trait FilterableTrait
                     $nk = "${field}_NOT";
                 } else {
                     $k = "${field}_${rule}";
-                    $nk = "${field}_N${rule}";
+                    $nk = "${field}_NOT_${rule}";
                 }
                 if (array_key_exists($k, $args)) {
                     $method = 'filter' . $rule;
