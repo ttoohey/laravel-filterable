@@ -15,6 +15,7 @@ class Filterable
     const RE = 'RE'; // regular expression match
     const FT = 'FT'; // full text search
     const IN = 'IN'; // list contains
+    const NULL = 'NULL'; // is null
     
     const String = Type\StringType::class;
     const Text = Type\TextType::class;

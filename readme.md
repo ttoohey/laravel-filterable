@@ -58,6 +58,7 @@ The built-in rules are:
 * RE - regular expression
 * FT - full text search (see notes below)
 * IN - contained in list
+* NULL - null comparison
 
 A standard set of rules are provided
 

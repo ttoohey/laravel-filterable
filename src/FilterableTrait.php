@@ -256,6 +256,20 @@ trait FilterableTrait
         }
         return $query;
     }
+
+    public function scopeFilterNull($query, $field, $arg = true)
+    {
+        if ($arg) {
+            return $query->whereNull($field);
+        } else {
+            return $query->whereNotNull($field);
+        }
+    }
+    
+    public function scopeFilterNotNull($query, $field, $arg = true)
+    {
+        return $query->filterNull($field, !$arg);
+    }
     
     public function scopeFilterableAnd($query, $filters, $root = null)
     {
