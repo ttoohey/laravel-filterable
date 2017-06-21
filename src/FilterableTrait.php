@@ -64,19 +64,20 @@ trait FilterableTrait
             foreach ($rules as $n => $rule) {
                 if ($n === 0) {
                     $k = $field;
+                    $nk = "${field}_NOT";
                 } else {
                     $k = "${field}_${rule}";
+                    $nk = "${field}_N${rule}";
                 }
                 if (array_key_exists($k, $args)) {
-                    $method = 'filter' . ucfirst(strtolower($rule));
+                    $method = 'filter' . $rule;
                     $query->$method($field, $args[$k], $root);
                     unset($args[$k]);
                 }
-                $k = "!$k";
-                if (array_key_exists($k, $args)) {
-                    $method = 'filterNot' . ucfirst(strtolower($rule));
-                    $query->$method($field, $args[$k], $root);
-                    unset($args[$k]);
+                if (array_key_exists($nk, $args)) {
+                    $method = 'filterNot' . $rule;
+                    $query->$method($field, $args[$nk], $root);
+                    unset($args[$nk]);
                 }
             }
         }

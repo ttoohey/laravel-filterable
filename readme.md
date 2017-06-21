@@ -132,15 +132,22 @@ Rule names are converted to 'ucfirst' and appended to 'scopeFilter'.
 
 # Negating rules
 
-Some rules may be negated by prefixing with a '!'.
+Rules may be negated by using the 'NOT' modified for default rules, or prefixing the rule modifier with 'N' for other rules.
 
 ```
 // anyone but John
 $filter = [
-  '!name' => 'John'
+  'name_NOT' => 'John'
 ];
 User::filter($filter)->toSql();
 // select * from users where name != ?
+
+// any status except 'active' or 'expired'
+$filter = [
+  'status_NIN' => ['active', 'expired']
+];
+User::filter($filter)->toSql();
+// select * from users where status not in (?, ?)
 ```
 
 Note: the comparison rules (MIN, MAX, LT, GT) do not have negated forms.
@@ -160,7 +167,7 @@ class User extends Model
 }
 ```
 
-# Logical combinations with AND, OR, and NOT
+# Logical combinations with AND, OR, NOT, and NOR
 
 A filter can create more complex queries by structuring the filter into nested queries.
 
