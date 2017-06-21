@@ -250,7 +250,9 @@ trait FilterableTrait
         $f2 = "${t2}.{$key}";
         $joinMethod = ($root === $query ? 'join' : 'leftJoin');
         $root->$joinMethod(DB::raw("({$sub->toSql()}) as $t2"), $f1, '=', $f2);
-        $query->mergeBindings($sub);
+        foreach ($sub->getBindings() as $binding) {
+            $root->addBinding($binding, 'join');
+        }
         if ($joinMethod === 'leftJoin') {
             $query->whereNotNull($f2);
         }
@@ -303,7 +305,7 @@ trait FilterableTrait
         }, null, null, 'and not');
     }
 
-    public function scopeFilterableNOr($query, $filters, $root = null)
+    public function scopeFilterableNor($query, $filters, $root = null)
     {
         $root = $root ?: $query;
         return $query->where(function ($subQuery) use ($filters, $root) {
