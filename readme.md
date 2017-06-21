@@ -133,7 +133,7 @@ Rule names are converted to 'ucfirst' and appended to 'scopeFilter'.
 
 # Negating rules
 
-Rules may be negated by using the 'NOT' modified for default rules, or prefixing the rule modifier with 'N' for other rules.
+Rules may be negated by using the 'NOT' modifier for default rules, or prefixing the rule modifier with 'NOT_' for other rules.
 
 ```
 // anyone but John
@@ -145,7 +145,7 @@ User::filter($filter)->toSql();
 
 // any status except 'active' or 'expired'
 $filter = [
-  'status_NIN' => ['active', 'expired']
+  'status_NOT_IN' => ['active', 'expired']
 ];
 User::filter($filter)->toSql();
 // select * from users where status not in (?, ?)
