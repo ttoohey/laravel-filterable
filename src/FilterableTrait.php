@@ -249,7 +249,7 @@ trait FilterableTrait
         $f1 = $query->getModel()->getQualifiedKeyName();
         $f2 = "${t2}.{$key}";
         $joinMethod = ($root === $query ? 'join' : 'leftJoin');
-        $root->$joinMethod(DB::raw("({$sub->toSql()}) as $t2"), $f1, '=', $f2);
+        $root->$joinMethod(DB::raw("({$sub->toSql()}) as {$this->filterable__wrap($t2)}"), $f1, '=', $f2);
         foreach ($sub->getBindings() as $binding) {
             $root->addBinding($binding, 'join');
         }
@@ -331,17 +331,17 @@ trait FilterableTrait
             $a2 = str_singular($t1) . '_id';
             $sub->distinct()->select($relation->getForeignKey() . " as $a2");
             $f2 = $t2 . '.' . $a2;
-            $root->$joinMethod(DB::raw("({$sub->toSql()}) as $t2"), $f1, '=', $f2);
+            $root->$joinMethod(DB::raw("({$sub->toSql()}) as {$this->filterable__wrap($t2)}"), $f1, '=', $f2);
         } else if ($relation instanceof Relations\HasOneOrMany) {
             $sub->distinct()->select($relation->getForeignKey());
             $f2 = $t2 . '.' . $relation->getPlainForeignKey();
-            $root->$joinMethod(DB::raw("({$sub->toSql()}) as $t2"), $f1, '=', $f2);
+            $root->$joinMethod(DB::raw("({$sub->toSql()}) as {$this->filterable__wrap($t2)}"), $f1, '=', $f2);
         } else {
             $sub->distinct()->select($relation->getQualifiedOtherKeyName() . ' as id');
             $key = $relation->getForeignKey();
             $f1 = $relation->getQualifiedForeignKey();
             $f2 = "$t2.id";
-            $root->$joinMethod(DB::raw("({$sub->toSql()}) as $t2"), $f1, '=', $f2);
+            $root->$joinMethod(DB::raw("({$sub->toSql()}) as {$this->filterable__wrap($t2)}"), $f1, '=', $f2);
         }
         foreach ($sub->toBase()->getBindings() as $binding) {
             $root->addBinding($binding, 'join');
