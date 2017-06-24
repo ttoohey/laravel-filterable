@@ -11,6 +11,7 @@ class IntegerType implements FilterableType
     static function default () {
         return [
           Filterable::EQ,
+          Filterable::IN,
           Filterable::MIN,
           Filterable::MAX,
           Filterable::LT,
