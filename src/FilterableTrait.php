@@ -337,10 +337,11 @@ trait FilterableTrait
             $f2 = $t2 . '.' . $relation->getPlainForeignKey();
             $root->$joinMethod(DB::raw("({$sub->toSql()}) as {$this->filterable__wrap($t2)}"), $f1, '=', $f2);
         } else {
-            $sub->distinct()->select($relation->getQualifiedOtherKeyName() . ' as id');
+            $a2 = $field . '_id';
+            $sub->distinct()->select($relation->getQualifiedOtherKeyName() . " as $a2");
             $key = $relation->getForeignKey();
             $f1 = $relation->getQualifiedForeignKey();
-            $f2 = "$t2.id";
+            $f2 = "$t2.$a2";
             $root->$joinMethod(DB::raw("({$sub->toSql()}) as {$this->filterable__wrap($t2)}"), $f1, '=', $f2);
         }
         foreach ($sub->toBase()->getBindings() as $binding) {
