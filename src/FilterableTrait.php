@@ -26,6 +26,12 @@ trait FilterableTrait
     
     public function scopeFilter ($query, $args = null, $root = null)
     {
+        if ($args === null) {
+            return $query;
+        }
+        if ($args instanceof $this) {
+          return $query->filterableModel($args, $root);
+        }
         if (isset($args['AND'])) {
             if (count($args) !== 1) {
                 throw new FilterableException('AND parameter must not have peers');
@@ -351,6 +357,12 @@ trait FilterableTrait
             $query->whereNotNull($f2);
         }
         return $query;
+    }
+    
+    public function scopeFilterableModel($query, $model, $root = null)
+    {
+        $keyName = $query->getModel()->getKeyName();
+        return $query->where($keyName, $model->{$keyName});
     }
     
     private $filterable__aliasCount = 0;
