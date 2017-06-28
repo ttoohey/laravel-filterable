@@ -76,7 +76,7 @@ trait FilterableTrait
                 continue;
             }
             $rules = collect($rules)->map(function ($rule) {
-                return Filterable::isFilterableType($rule) ? $rule::default() : $rule;
+                return Filterable::isFilterableType($rule) ? $rule::defaultRules() : $rule;
             })->flatten()->unique();
             foreach ($rules as $n => $rule) {
                 if ($n === 0) {

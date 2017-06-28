@@ -3,5 +3,5 @@
 namespace Gency\Filterable;
 
 interface FilterableType {
-    static function default ();
+    static function defaultRules ();
 }
