@@ -7,7 +7,12 @@ use \Illuminate\Database\Eloquent\Relations;
 
 trait FilterableTrait
 {
-    
+    protected static function boot()
+    {
+        parent::boot();
+        static::addGlobalScope(new FilterableScope);
+    }
+  
     public function getFilterable () {
         return isset($this->filterable) ? $this->filterable : [];
     }
@@ -24,11 +29,17 @@ trait FilterableTrait
         return isset($this->filterableFtVector) ? $this->filterableFtVector : "${field}_vector";
     }
     
-    public function scopeFilter ($query, $args = null, $root = null)
+    public function scopeFilter ($query, $args = null)
     {
         if ($args === null) {
             return $query;
         }
+        $query->filters[] = $args;
+        return $query;
+    }
+    
+    public function scopeFilterableApply($query, $args, $root = null)
+    {
         if ($args instanceof $this) {
           return $query->filterableModel($args, $root);
         }
@@ -284,7 +295,7 @@ trait FilterableTrait
         $root = $root ?: $query;
         return $query->where(function ($subQuery) use ($filters, $root) {
             foreach($filters as $filter) {
-                $subQuery->filter($filter, $root);
+                $subQuery->filterableApply($filter, $root);
             }
         });
     }
@@ -295,7 +306,7 @@ trait FilterableTrait
         return $query->where(function ($subQuery) use ($filters, $root) {
             foreach($filters as $filter) {
                 $subQuery->orWhere(function ($subQuery) use ($filter, $root) {
-                    $subQuery->filter($filter, $root);
+                    $subQuery->filterableApply($filter, $root);
                 });
             }
         });
@@ -306,7 +317,7 @@ trait FilterableTrait
         $root = $root ?: $query;
         return $query->where(function ($subQuery) use ($filters, $root) {
             foreach($filters as $filter) {
-                $subQuery->filter($filter, $root);
+                $subQuery->filterableApply($filter, $root);
             }
         }, null, null, 'and not');
     }
@@ -317,7 +328,7 @@ trait FilterableTrait
         return $query->where(function ($subQuery) use ($filters, $root) {
             foreach($filters as $filter) {
                 $subQuery->orWhere(function ($subQuery) use ($filter, $root) {
-                    $subQuery->filter($filter, $root);
+                    $subQuery->filterableApply($filter, $root);
                 });
             }
         }, null, null, 'and not');
@@ -329,7 +340,7 @@ trait FilterableTrait
         $t1 = $query->getModel()->getTable();
         $f1 = $query->getModel()->getQualifiedKeyName();
         $class = $relation->getRelated();
-        $sub = $class::filter($args);
+        $sub = $class::filterableApply($args);
         $t2 = $this->filterable__newAlias(str_plural($field));
         $joinMethod = ($root === $query ? 'join' : 'leftJoin');
         if ($relation instanceof Relations\BelongsToMany) {
