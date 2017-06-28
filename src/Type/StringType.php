@@ -8,7 +8,7 @@ use \Gency\Filterable\FilterableType;
 class StringType implements FilterableType
 {
     const type = 'String';
-    static function default () {
+    static function defaultRules () {
         return [
           Filterable::EQ,
           Filterable::LIKE,

@@ -8,7 +8,7 @@ use Gency\Filterable\FilterableType;
 class EnumType implements FilterableType
 {
     const type = 'Enum';
-    static function default () {
+    static function defaultRules () {
         return [
           Filterable::EQ,
           Filterable::IN

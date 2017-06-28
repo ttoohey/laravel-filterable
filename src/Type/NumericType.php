@@ -8,7 +8,7 @@ use Gency\Filterable\FilterableType;
 class NumericType implements FilterableType
 {
     const type = 'Numeric';
-    static function default () {
+    static function defaultRules () {
         return [
           Filterable::EQ,
           Filterable::MIN,

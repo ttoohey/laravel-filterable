@@ -8,7 +8,7 @@ use Gency\Filterable\FilterableType;
 class BooleanType implements FilterableType
 {
     const type = 'Boolean';
-    static function default () {
+    static function defaultRules () {
         return [
           Filterable::EQ
         ];

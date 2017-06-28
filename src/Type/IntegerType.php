@@ -8,7 +8,7 @@ use Gency\Filterable\FilterableType;
 class IntegerType implements FilterableType
 {
     const type = 'Integer';
-    static function default () {
+    static function defaultRules () {
         return [
           Filterable::EQ,
           Filterable::IN,

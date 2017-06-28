@@ -8,7 +8,7 @@ use Gency\Filterable\FilterableType;
 class TextType implements FilterableType
 {
     const type = 'Text';
-    static function default () {
+    static function defaultRules () {
         return [
           Filterable::FT,
           Filterable::EQ,

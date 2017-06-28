@@ -8,7 +8,7 @@ use Gency\Filterable\FilterableType;
 class DateType implements FilterableType
 {
     const type = 'Date';
-    static function default () {
+    static function defaultRules () {
         return [
           Filterable::EQ,
           Filterable::MIN,
