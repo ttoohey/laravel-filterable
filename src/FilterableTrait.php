@@ -7,6 +7,8 @@ use \Illuminate\Database\Eloquent\Relations;
 
 trait FilterableTrait
 {
+    protected $filterableFilter = null;
+    
     protected static function boot()
     {
         parent::boot();
@@ -29,17 +31,38 @@ trait FilterableTrait
         return isset($this->filterableFtVector) ? $this->filterableFtVector : "${field}_vector";
     }
     
+    public function getFilterableFilter () {
+        return $this->filterableFilter;
+    }
+    
     public function scopeFilter ($query, $args = null)
     {
         if ($args === null) {
             return $query;
         }
-        $query->filters[] = $args;
+        if (isset($this->filterableFilter)) {
+            $this->filterableFilter = $this->filterableMergeFilters($this->filterableFilter, $args);
+        } else {
+            $this->filterableFilter = $args;
+        }
         return $query;
+    }
+    
+    public function scopeFilterApply ($query)
+    {
+        if (!isset($this->filterableFilter)) {
+            return $query;
+        }
+        $filter = $this->filterableFilter;
+        unset($this->filterableFilter);
+        return $query->filterableApply($filter);
     }
     
     public function scopeFilterableApply($query, $args, $root = null)
     {
+        if ($args === null) {
+            return $query;
+        }
         if ($args instanceof $this) {
           return $query->filterableModel($args, $root);
         }
@@ -99,7 +122,7 @@ trait FilterableTrait
             }
         }
         if (count($args) > 0) {
-            throw new FilterableException('Filter query has unknown field: ' . array_keys($args)[0]);
+            throw new FilterableException('Filter query on ' . get_class($this) .' has unknown field: ' . array_keys($args)[0]);
         }
         return $query;
     }
@@ -376,6 +399,152 @@ trait FilterableTrait
         return $query->where($keyName, $model->{$keyName});
     }
     
+    public function filterableMergeFilters ($a, $b)
+    {
+        $logical = function ($a, $b, $op, $inv_op) {
+            $logicOperators = ['AND', 'OR'];
+            if (in_array(key($a), $logicOperators)) {
+                return [key($a) => (
+                    collect(current($a))->map(function ($item) use ($b) {
+                        return $this->filterableMergeFilters($item, $b);
+                    })->toArray()
+                )];
+            }
+            if (key($a) !== $op) {
+                return null;
+            }
+            if (count(current($a)) === 0) {
+                return $b;
+            }
+            $filter = $this->filterableMergeFilters([$inv_op => (
+                collect(current($a))->map(function ($item) {
+                    return ['!' => $item];
+                })->toArray())], $b);
+            return count(current($filter)) === 1 ? current($filter)[0] : $filter;
+        };
+        $filter = $logical($a, $b, 'NOT', 'OR') ?: $logical($a, $b, 'NOR', 'AND')
+               ?: $logical($b, $a, 'NOT', 'OR') ?: $logical($b, $a, 'NOR', 'AND');
+        if ($filter !== null) {
+            return $filter;
+        }
+
+        $a_inv = key($a) === '!';
+        $b_inv = key($b) === '!';
+        if ($a_inv) {
+            $a = current($a);
+        }
+        if ($b_inv) {
+            $b = current($b);
+        }
+        
+        $filter = [];
+        $and = [];
+        foreach ($this->getFilterable() as $field => $rules) {
+            if ($rules instanceof Relations\Relation) {
+                $in_a = array_key_exists($field, $a);
+                $in_b = array_key_exists($field, $b);
+                if ($in_a && $in_b) {
+                    $related = $rules->getRelated();
+                    if (($a[$field] instanceof $related) || ($b[$field] instanceof $related)) {
+                        $and[] = $a_inv ? ['NOT' => [[$field => $a[$field]]]] : [$field => $a[$field]];
+                        $and[] = $b_inv ? ['NOT' => [[$field => $b[$field]]]] : [$field => $b[$field]];
+                    } else {
+                        $a_field = $a_inv ? ['!' => $a[$field]] : $a[$field];
+                        $b_field = $b_inv ? ['!' => $b[$field]] : $b[$field];
+                        $filter[$field] = $related->filterableMergeFilters($a_field, $b_field);
+                    }
+                } else if ($in_a) {
+                    if ($a_inv) {
+                        $and[] = ['NOT' => [[$field => $a[$field]]]];
+                    } else {
+                        $filter[$field] = $a[$field];
+                    }
+                } else if ($in_b) {
+                    if ($b_inv) {
+                        $and[] = ['NOT' => [[$field => $b[$field]]]];
+                    } else {
+                        $filter[$field] = $b[$field];
+                    }
+                }
+                unset($a[$field]);
+                unset($b[$field]);
+            } else {
+                $rules = collect($rules)->map(function ($rule) {
+                    return Filterable::isFilterableType($rule) ? $rule::defaultRules() : $rule;
+                })->flatten()->unique();
+                foreach ($rules as $n => $rule) {
+                    if ($n === 0) {
+                        $k = $field;
+                    } else {
+                        $k = "${field}_${rule}";
+                    }
+                    $in_a = array_key_exists($k, $a);
+                    $in_b = array_key_exists($k, $b);
+                    if ($in_a && $in_b) {
+                        $and[] = $a_inv ? ['NOT' => [[$k => $a[$k]]]] : [$k => $a[$k]];
+                        $and[] = $b_inv ? ['NOT' => [[$k => $b[$k]]]] : [$k => $b[$k]];
+                    } else if ($in_a) {
+                        if ($a_inv) {
+                            $and[] = ['NOT' => [[$k => $a[$k]]]];
+                        } else {
+                            $filter[$k] = $a[$k];
+                        }
+                    } else if ($in_b) {
+                        if ($b_inv) {
+                            $and[] = ['NOT' => [[$k => $b[$k]]]];
+                        } else {
+                            $filter[$k] = $b[$k];
+                        }
+                    }
+                    unset($a[$k]);
+                    unset($b[$k]);
+                }
+                foreach ($rules as $n => $rule) {
+                    if ($n === 0) {
+                        $k = "${field}_NOT";
+                    } else {
+                        $k = "${field}_NOT_${rule}";
+                    }
+                    $in_a = array_key_exists($k, $a);
+                    $in_b = array_key_exists($k, $b);
+                    if ($in_a && $in_b) {
+                        $and[] = $a_inv ? ['NOT' => [[$k => $a[$k]]]] : [$k => $a[$k]];
+                        $and[] = $b_inv ? ['NOT' => [[$k => $b[$k]]]] : [$k => $b[$k]];
+                    } else if ($in_a) {
+                        if ($a_inv) {
+                            $and[] = ['NOT' => [[$k => $a[$k]]]];
+                        } else {
+                            $filter[$k] = $a[$k];
+                        }
+                    } else if ($in_b) {
+                        if ($b_inv) {
+                            $and[] = ['NOT' => [[$k => $b[$k]]]];
+                        } else {
+                            $filter[$k] = $b[$k];
+                        }
+                    }
+                    unset($a[$k]);
+                    unset($b[$k]);
+                }
+            }
+        }
+        if (count($a) > 0) {
+            throw new FilterableException ('Argument #1 Filter query on ' . get_class($this) .' has unknonwn field: ' . collect($a)->keys()[0]);
+        }
+        if (count($b) > 0) {
+            throw new FilterableException ('Argument #2 Filter query on ' . get_class($this) .' has unknonwn field: ' . collect($b)->keys()[0]);
+        }
+        if (count($and) > 0) {
+            if (count($filter) > 0) {
+                $and[] = $filter;
+            }
+            return [
+                'AND' => $and
+            ];
+        }
+        return $filter;
+    }
+
     private $filterable__aliasCount = 0;
     private function filterable__newAlias($prefix = 't') {
         return $prefix . '_' . (++$this->filterable__aliasCount);
