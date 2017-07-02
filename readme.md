@@ -233,11 +233,104 @@ $filter = [
   ]
 ];
 Post::filter($filter)->toSql()
-// select * from posts inner join (
-//  select distinct comments.post_id
-//  from comments
-//  where created_at >= ? and created_at <= ?
-// ) as comments_1 on posts.id = comments_1.post_id
+// select * from "posts"
+// inner join (
+//   select distinct "comments"."post_id" from "comments"
+//   where "created_at" >= ? and "created_at" <= ?
+// ) as "comments_1" on "posts"."id" = "comments_1"."post_id"
+```
+
+# Chaining filters
+
+Filters are deeply merged when chaining.
+
+```
+class Post extends Model
+{
+  use \Gency\Filterable\FilterableTrait;
+  
+  public function getFilterable () {
+    return [
+      'comment' => $this->comments()
+    ];
+  }
+  
+  public function comments() {
+    return $this->hasMany(Comment::class);
+  }
+}
+
+class User extends Model
+{
+  use \Gency\Filterable\FilterableTrait;
+  
+  protected $filterable = [
+    'id' => Filterable::Integer
+  ];
+}
+
+class Comment extends Model
+{
+  use \Gency\Filterable\FilterableTrait;
+  
+  public function getFilterable () {
+    return [
+      'created_at' => Filterable::Date,
+      'author' => $this->author()
+    ];
+  }
+  
+  public function post() {
+    return $this->belongsTo(Post::class);
+  }
+  
+  public function author() {
+    return $this->belongsTo(User::class);
+  }
+}
+$filter1 = [
+  'comment' => [
+    'created_at_MIN' => '2017-06-01',
+    'created_at_MAX' => '2017-07-01'
+  ]
+];
+$filter2 = [
+  'comment' => [
+    'author' => [
+      'id' => 1
+    ]
+  ]
+];
+
+Post::filter($filter1)->filter($filter2)->toSql()
+// select * from "posts"
+// inner join (
+//   select distinct "comments"."post_id"
+//   from "comments"
+//   inner join (
+//     select distinct "users"."id" as "author_id" from "users"
+//     where "id" = ?
+//   ) as "authors_1" on "comments"."author_id" = "authors_1"."author_id"
+//   where "created_at" >= ? and "created_at" <= ?
+// ) as "comments_1" on "posts"."id" = "comments_1"."post_id"
+```
+
+To not do a deep merge the `filterApply()` method can be used.
+
+```
+Post::filter($filter1)->filterApply()->filter($filter2)->toSql()
+// select * from "posts"
+// inner join (
+//   select distinct "comments"."post_id" from "comments"
+//   where "created_at" >= ? and "created_at" <= ?
+// ) as "comments_1" on "posts"."id" = "comments_1"."post_id"
+// inner join (
+//   select distinct "comments"."post_id" from "comments"
+//   inner join (
+//     select distinct "users"."id" as "author_id" from "users"
+//     where "id" = ?
+//   ) as "authors_1" on "comments"."author_id" = "authors_1"."author_id"
+// ) as "comments_2" on "posts"."id" = "comments_2"."post_id"
 ```
 
 # Full text search
